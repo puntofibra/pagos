@@ -14,11 +14,12 @@
 
   /* ---------- Servidor ---------- */
 
-  function api(action, data) {
+  // Una petición al servidor (con límite de 15 s).
+  function apiUna(action, data) {
     var url = window.PAGOS_API;
     if (!url || !/^https?:\/\//.test(url)) return Promise.reject(new Error('config'));
     var ctrl = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, 20000);
+    var timer = setTimeout(function () { ctrl.abort(); }, 15000);
     return fetch(url, {
       method: 'POST',
       body: JSON.stringify(Object.assign({ action: action }, data || {})),
@@ -28,6 +29,19 @@
       .then(function (j) { clearTimeout(timer); return j; },
             function (e) { clearTimeout(timer); throw e; });
   }
+
+  // Si la conexión falla, se reintenta sola una vez antes de mostrar error.
+  // El servidor acepta reintentos: guardar o borrar dos veces no duplica nada.
+  function api(action, data) {
+    return apiUna(action, data).catch(function (e) {
+      if (e && e.message === 'config') throw e;
+      return new Promise(function (r) { setTimeout(r, 700); })
+        .then(function () { return apiUna(action, data); });
+    });
+  }
+
+  // Despierta el servidor nada más abrir la app, mientras se escribe la contraseña.
+  try { apiUna('ping').catch(function () {}); } catch (e) {}
 
   function textoError(err) {
     if (err && err.message === 'config') return 'Falta configurar la dirección del servidor (archivo config.js).';
