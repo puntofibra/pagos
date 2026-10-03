@@ -1,0 +1,25 @@
+PAGOS FUTURMOVIL - PWA
+
+1) APPS SCRIPT (el servidor)
+   - Crea un proyecto en script.google.com y pega TODO el contenido de Code.gs.
+   - Implementar > Nueva implementacion > Tipo: Aplicacion web
+       Ejecutar como: Yo
+       Quien tiene acceso: Cualquier usuario
+   - Autoriza los permisos y copia la URL que termina en /exec.
+   - La hoja "Codigos" se crea sola la primera vez que alguien entra.
+   - Si cambias Code.gs: Implementar > Gestionar implementaciones > Nueva version.
+
+2) GITHUB (la app)
+   - Abre config.js, borra PEGA_AQUI_LA_URL_DE_APPS_SCRIPT y pega tu URL /exec entre las comillas.
+   - En tu repositorio: Add file > Upload files. Arrastra estos 10 archivos sueltos
+     (sin carpetas) y pulsa Commit:
+       index.html  styles.css  app.js  config.js  sw.js  manifest.webmanifest
+       icon-192.png  icon-512.png  icon-maskable-512.png  apple-touch-icon.png
+   - Settings > Pages > Deploy from a branch > main / (root).
+
+3) INSTALAR
+   - Android y PC (Chrome o Edge): aparece el boton "Instalar app" arriba a la derecha.
+   - iPhone: boton "Instalar app" > instrucciones (Compartir > Anadir a pantalla de inicio).
+     En iPhone solo funciona desde Safari.
+
+Contrasena de administrador: f7777 (se cambia en la primera linea de Code.gs).
