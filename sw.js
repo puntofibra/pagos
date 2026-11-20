@@ -1,5 +1,5 @@
 /* Service worker: red primero (siempre la versión más nueva) y caché como respaldo sin conexión. */
-var CACHE = 'fm-pagos-v1';
+var CACHE = 'fm-pagos-v2';
 var SHELL = [
   './', 'index.html', 'styles.css', 'app.js', 'config.js',
   'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
