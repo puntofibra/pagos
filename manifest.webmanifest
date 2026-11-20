@@ -1,7 +1,7 @@
 {
-  "name": "FuturMovil",
-  "short_name": "FuturMovil",
-  "description": "Pagos de FuturMovil",
+  "name": "Datáfono",
+  "short_name": "Datáfono",
+  "description": "Datáfono de FuturMovil",
   "lang": "es",
   "start_url": "./",
   "scope": "./",
