@@ -318,3 +318,9 @@ body {
 
 @media (max-width: 360px) { .keys { gap: 7px; } .keys button { min-height: 48px; font-size: 20px; } .lcd-title { font-size: 19px; } }
 @media (prefers-reduced-motion: reduce) { .pos, .lcd-pane.view, .pos.busy .pos-leds i, .pos[data-mode="pay"] .keys .k-grn, .pos[data-mode="pay"] .pos-nfc, .lcd-err:not(:empty), .lcd-soft:disabled { animation: none; } .pos-slot, .chipcard { transition: none; } }
+
+/* Compartir: va junto a Instalar, a la derecha de la cabecera */
+.install.share { margin-left: auto; }
+.install.share + .install { margin-left: 0; }
+.install { white-space: nowrap; }
+@media (max-width: 420px) { .brand { gap: 7px; } .brand-name { font-size: 20px; } .install { padding: 9px 10px; font-size: 12.5px; gap: 5px; } }
