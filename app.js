@@ -53,8 +53,14 @@
   var VIEWS = ['vLogin', 'vPay', 'vAdmin'];
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    $('pos').hidden = id === 'vAdmin';                                   // el datáfono solo se ve al meter la clave y al pagar
+    $('pos').setAttribute('data-mode', id === 'vPay' ? 'pay' : 'login');
     window.scrollTo(0, 0);
   }
+
+  // En ordenador el cursor va a la clave para escribir con el teclado; en el móvil no, para que no tape el datáfono.
+  var fino = window.matchMedia('(pointer: fine)').matches;
+  function foco() { if (fino) $('pass').focus(); }
 
   function toast(msg) {
     var t = $('toast');
@@ -75,7 +81,7 @@
     $('loginError').textContent = msg || '';
     resetForm();
     show('vLogin');
-    $('pass').focus();
+    foco();
   }
 
   /* ---------- Entrar ---------- */
@@ -88,7 +94,8 @@
     if (!pass) { err.textContent = 'Escribe la contraseña'; return; }
     var btn = $('loginBtn');
     btn.disabled = true;
-    btn.firstElementChild.textContent = 'Comprobando…';
+    btn.firstElementChild.textContent = 'Conectando…';
+    $('pos').classList.add('busy');
     api('login', { pass: pass }).then(function (res) {
       if (!res.ok) { fallo(res.error || 'Contraseña incorrecta'); return; }
       if (res.role === 'admin') {
@@ -101,7 +108,8 @@
     }).catch(function (e) { fallo(textoError(e)); })
       .then(function () {
         btn.disabled = false;
-        btn.firstElementChild.textContent = 'Entrar';
+        btn.firstElementChild.textContent = 'Pulse ✓ para continuar';
+        $('pos').classList.remove('busy');
       });
   });
 
@@ -112,7 +120,8 @@
     box.classList.remove('shake');
     void box.offsetWidth;
     box.classList.add('shake');
-    $('pass').select();
+    if (fino) $('pass').select(); else $('pass').value = '';
+    pitido(220, 0.16);
   }
 
   $('eye').addEventListener('click', function () {
@@ -135,6 +144,7 @@
     box.appendChild(i); box.appendChild(d); box.appendChild(c);
 
     $('payText').textContent = 'Pagar ' + fmtEUR.format(amount);
+    $('ticketAmt').textContent = fmtEUR.format(amount);
     $('payLink').href = MYPOS_BASE + String(Number(amount));
     show('vPay');
 
@@ -153,6 +163,61 @@
   }
 
   $('payExit').addEventListener('click', function () { logout(''); });
+
+  /* ---------- Teclado del datáfono ---------- */
+
+  var audio = null;
+  function pitido(frec, dur) {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      var o = audio.createOscillator(), g = audio.createGain();
+      o.type = 'square'; o.frequency.value = frec;
+      g.gain.setValueAtTime(0.035, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + (dur || 0.07));
+      o.connect(g); g.connect(audio.destination);
+      o.start(); o.stop(audio.currentTime + (dur || 0.07));
+    } catch (e) {}
+  }
+
+  function tecla(k) {
+    var pagando = !$('vPay').hidden, inp = $('pass');
+    pitido(k === 'ok' ? 880 : (k === 'x' ? 330 : 660));
+    try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
+    if (pagando) {                                   // en la pantalla del importe: verde paga, rojo cancela
+      if (k === 'ok') $('payLink').click();
+      else if (k === 'x') logout('');
+      return;
+    }
+    if (k === 'ok') {
+      if ($('loginBtn').disabled) return;
+      if ($('loginForm').requestSubmit) $('loginForm').requestSubmit(); else $('loginBtn').click();
+      return;
+    }
+    if (k === 'x') { inp.value = ''; $('loginError').textContent = ''; return; }
+    if (k === 'del') { inp.value = inp.value.slice(0, -1); return; }
+    if (k === 'abc') { inp.focus(); return; }       // abre el teclado del móvil para las letras
+    if (/^[0-9]$/.test(k)) { if (inp.value.length < 40) inp.value += k; $('loginError').textContent = ''; }
+  }
+
+  // Pulsar una tecla no le quita el cursor a la clave ni abre el teclado del móvil.
+  $('keys').addEventListener('pointerdown', function (e) {
+    if (e.target.closest('button')) e.preventDefault();
+  });
+  $('keys').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    var k = b.getAttribute('data-k');
+    if (k === 'eye') { pitido(660); return; }        // el ojo tiene su propio botón (mostrar/ocultar la clave)
+    tecla(k);
+  });
+
+  // Reloj de la pantalla
+  function reloj() {
+    var d = new Date();
+    $('lcdClock').textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  reloj();
+  setInterval(reloj, 20000);
 
   $('payLink').addEventListener('pointerdown', function (e) {
     if (reduce) return;
@@ -386,6 +451,6 @@
       else { logout(''); }
     }).catch(function () { logout(''); });
   } else {
-    $('pass').focus();
+    foco();
   }
 })();
