@@ -412,6 +412,30 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') $('iosSheet').hidden = true; });
   refreshInstall();
 
+  /* ---------- Compartir la app ---------- */
+
+  $('shareBtn').addEventListener('click', function () {
+    var url = location.origin + location.pathname;
+    var dicho = function (t) {
+      $('shareTxt').textContent = t;
+      setTimeout(function () { $('shareTxt').textContent = 'Compartir'; }, 2200);
+    };
+    if (navigator.share) {                                  // móvil: abre WhatsApp, correo, etc.
+      navigator.share({ title: 'Datáfono · FuturMovil', text: 'Paga aquí con tarjeta a FuturMovil', url: url }).catch(function () {});
+      return;
+    }
+    var copiar = function () {                              // ordenador: copia el enlace
+      var t = document.createElement('textarea');
+      t.value = url; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); dicho('¡Copiado!'); } catch (e) { dicho(url); }
+      document.body.removeChild(t);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { dicho('¡Copiado!'); }, copiar);
+    } else copiar();
+  });
+
   /* ---------- Efectos ---------- */
 
   if (!reduce && window.matchMedia('(hover: hover)').matches) {
