@@ -1,8 +1,8 @@
 /* Service worker: red primero (siempre la versión más nueva) y caché como respaldo sin conexión. */
-var CACHE = 'fm-pagos-v2';
+var CACHE = 'fm-pagos-v3';
 var SHELL = [
   './', 'index.html', 'styles.css', 'app.js', 'config.js',
-  'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
+  'manifest.webmanifest', 'Icono%20de%20terminal%20de%20pago%20moderno.png'
 ];
 
 self.addEventListener('install', function (e) {
