@@ -414,6 +414,14 @@
 
   /* ---------- Compartir la app ---------- */
 
+  // La imagen del datáfono se deja preparada para mandarla junto al enlace.
+  var fotoCompartir = null;
+  try {
+    fetch('compartir.jpg').then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
+      if (b) fotoCompartir = new File([b], 'datafono-futurmovil.jpg', { type: 'image/jpeg' });
+    }).catch(function () {});
+  } catch (e) {}
+
   $('shareBtn').addEventListener('click', function () {
     var url = location.origin + location.pathname;
     var dicho = function (t) {
@@ -421,7 +429,11 @@
       setTimeout(function () { $('shareTxt').textContent = 'Compartir'; }, 2200);
     };
     if (navigator.share) {                                  // móvil: abre WhatsApp, correo, etc.
-      navigator.share({ title: 'Datáfono · FuturMovil', text: 'Paga aquí con tarjeta a FuturMovil', url: url }).catch(function () {});
+      var datos = { title: 'Datáfono · FuturMovil', text: 'Paga aquí con tarjeta a FuturMovil', url: url };
+      var conFoto = { title: datos.title, text: datos.text + '\n' + url, files: [fotoCompartir] };
+      var sinFoto = function (e) { if (!e || e.name !== 'AbortError') navigator.share(datos).catch(function () {}); };
+      if (fotoCompartir && navigator.canShare && navigator.canShare(conFoto)) navigator.share(conFoto).catch(sinFoto);
+      else sinFoto();
       return;
     }
     var copiar = function () {                              // ordenador: copia el enlace
