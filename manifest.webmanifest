@@ -10,6 +10,6 @@
   "background_color": "#060A13",
   "theme_color": "#060A13",
   "icons": [
-    { "src": "Icono%20de%20terminal%20de%20pago%20moderno.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any" }
+    { "src": "Terminal%20de%20pago%20con%20recibo%20Futurmovil.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any" }
   ]
 }
