@@ -50,7 +50,7 @@
 
   /* ---------- Pantallas ---------- */
 
-  var VIEWS = ['vLogin', 'vPay', 'vAdmin'];
+  var VIEWS = ['vLogin', 'vPay', 'vLibre', 'vNfc', 'vAdmin'];
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
     $('pos').hidden = id === 'vAdmin';                                   // el datáfono solo se ve al meter la clave y al pagar
@@ -71,6 +71,9 @@
   }
 
   function logout(msg) {
+    pararNfc();
+    nfcPass = ''; modoMovil = false; parMovil = '';
+    try { if (/[?&]k=/.test(location.search)) history.replaceState(null, '', location.pathname); } catch (e) {}
     adminPass = '';
     editing = null;
     confirming = null;
@@ -99,9 +102,9 @@
     api('login', { pass: pass }).then(function (res) {
       if (!res.ok) { fallo(res.error || 'Contraseña incorrecta'); return; }
       if (res.role === 'admin') {
-        adminPass = pass;
-        try { sessionStorage.setItem('fm_admin', pass); } catch (e) {}
-        entrarAdmin();
+        pedirLlave(pass, !!res.nueva);
+      } else if (res.role === 'libre') {
+        abrirLibre();
       } else {
         mostrarPago(Number(res.amount));
       }
@@ -164,6 +167,168 @@
 
   $('payExit').addEventListener('click', function () { logout(''); });
 
+  /* ---------- Importe libre ---------- */
+
+  // Se teclea como en un datáfono: las cifras entran por la derecha y siempre quedan dos decimales (1250 = 12,50 €).
+  var libreCent = 0;
+  function pintaLibre() {
+    var el = $('libreAmt');
+    el.textContent = fmtEUR.format(libreCent / 100);
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  }
+  function abrirLibre() {
+    libreCent = 0;
+    pintaLibre();
+    $('libreError').textContent = '';
+    show('vLibre');
+  }
+  function teclaLibre(k) {
+    var err = $('libreError');
+    err.textContent = '';
+    if (/^[0-9]$/.test(k)) {
+      if (libreCent >= 10000) { err.textContent = 'Importe máximo 999,99 €'; pitido(220, 0.16); return; }
+      libreCent = libreCent * 10 + Number(k);
+    } else if (k === 'del') {
+      libreCent = Math.floor(libreCent / 10);
+    } else if (k === 'x') {
+      if (libreCent > 0) libreCent = 0; else { logout(''); return; }
+    } else if (k === 'ok') {
+      if (libreCent < 1) { err.textContent = 'Teclee el importe, p. ej. 1250 = 12,50 €'; pitido(220, 0.16); return; }
+      mostrarPago(libreCent / 100);
+      return;
+    }
+    pintaLibre();
+  }
+  $('libreBtn').addEventListener('click', function () { teclaLibre('ok'); });
+
+  /* ---------- Llave NFC del administrador ---------- */
+
+  // En Android la llave se lee aquí mismo. En ordenador o iPhone sale un QR para pasarla con un móvil Android.
+  var hayNfc = 'NDEFReader' in window;
+  var nfcCtrl = null, nfcOcupado = false, nfcPass = '';
+  var parCodigo = '', parTimer = null;      // QR que se enseña en este dispositivo
+  var modoMovil = false, parMovil = '';     // este móvil está pasando la llave para otro dispositivo
+
+  function nfcDi(t, cls) { $('nfcMsg').textContent = t; $('nfcIco').className = 'nfc-ico ' + (cls || ''); }
+  function vibra(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+  function pararNfc() {
+    if (nfcCtrl) { try { nfcCtrl.abort(); } catch (e) {} nfcCtrl = null; }
+    clearInterval(parTimer); parTimer = null; parCodigo = '';
+    nfcOcupado = false;
+  }
+
+  function pantallaLlave(nueva) {
+    $('nfcQr').hidden = true;
+    $('nfcBtn').hidden = true;
+    $('nfcIco').hidden = false;
+    $('nfcTitle').textContent = nueva ? 'Registre su llave NFC' : 'Acerque su llave NFC';
+    nfcDi('Un momento…', '');
+    show('vNfc');
+  }
+
+  function pedirLlave(pass, nueva) {
+    pararNfc();
+    nfcPass = pass; modoMovil = false;
+    pantallaLlave(nueva);
+    if (hayNfc) escanear(true); else porQr();
+  }
+
+  function sinNfc() {
+    if (modoMovil) nfcDi('No se puede usar el NFC. Enciéndalo y abra el QR con Chrome en un móvil Android.', 'err');
+    else porQr();
+  }
+
+  function escanear(auto) {
+    if (nfcCtrl) return;
+    var ctrl = new AbortController(), lector;
+    try { lector = new NDEFReader(); } catch (e) { sinNfc(); return; }
+    lector.scan({ signal: ctrl.signal }).then(function () {
+      if ($('vNfc').hidden) { try { ctrl.abort(); } catch (e) {} return; }
+      nfcCtrl = ctrl;
+      $('nfcBtn').hidden = true;
+      nfcDi('Acerque la llave a la parte trasera del móvil', 'busca');
+      lector.onreadingerror = function () { if (!nfcOcupado) nfcDi('No se ha podido leer la llave, acérquela de nuevo', 'err'); };
+      lector.onreading = function (ev) { llaveLeida(String(ev.serialNumber || '')); };
+    }).catch(function (err) {
+      if (err && err.name === 'NotAllowedError') {
+        $('nfcBtn').hidden = false;
+        if (auto) nfcDi('Pulse ✓ y acerque su llave', '');
+        else nfcDi('Hace falta permiso para usar el NFC. Acéptelo y pulse ✓.', 'err');
+      } else sinNfc();
+    });
+  }
+  $('nfcBtn').addEventListener('click', function () { escanear(false); });
+
+  function llaveLeida(sn) {
+    if (nfcOcupado) return;
+    if (!sn) { nfcDi('La llave no tiene número de serie legible', 'err'); return; }
+    nfcOcupado = true;
+    nfcDi('Comprobando llave…', 'busca');
+    var p = modoMovil ? api('llaveAutorizar', { codigo: parMovil, llave: sn }) : api('llave', { pass: nfcPass, llave: sn });
+    p.then(function (res) {
+      if (!res.ok) {
+        nfcOcupado = false;
+        pitido(220, 0.16); vibra([80, 60, 80]);
+        nfcDi(res.error || 'Llave no autorizada', 'err');
+        return;
+      }
+      pitido(880); vibra(60);
+      if (modoMovil) {                       // se queda ocupado: ya no hay nada más que leer
+        if (nfcCtrl) { try { nfcCtrl.abort(); } catch (e) {} nfcCtrl = null; }
+        $('nfcTitle').textContent = res.nueva ? 'Llave guardada' : 'Llave correcta';
+        nfcDi('Ya puede volver al otro dispositivo.', 'ok');
+        return;
+      }
+      entrarCon(res.token, !!res.nueva);
+    }).catch(function (e) { nfcOcupado = false; nfcDi(textoError(e), 'err'); });
+  }
+
+  function entrarCon(token, nueva) {
+    pararNfc();
+    nfcPass = '';
+    adminPass = token;
+    try { sessionStorage.setItem('fm_admin', token); } catch (e) {}
+    entrarAdmin();
+    toast(nueva ? 'Llave guardada: desde ahora se pedirá siempre esta' : 'Acceso concedido');
+  }
+
+  function porQr() {
+    $('nfcTitle').textContent = 'Pase su llave con el móvil';
+    nfcDi('Preparando código…', 'busca');
+    api('llaveCodigo', { pass: nfcPass }).then(function (res) {
+      if ($('vNfc').hidden || modoMovil) return;
+      if (!res.ok) { nfcDi(res.error || 'No se pudo preparar el código', 'err'); return; }
+      parCodigo = res.codigo;
+      var url = location.origin + location.pathname + '?k=' + res.codigo;
+      $('nfcQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' + encodeURIComponent(url);
+      $('nfcQr').hidden = false;
+      $('nfcIco').hidden = true;
+      nfcDi('Escanee el QR con un móvil Android y acerque la llave NFC.', '');
+      var n = 0, codigo = res.codigo;
+      parTimer = setInterval(function () {
+        if (++n > 95) { logout('Tiempo agotado. Vuelva a intentarlo.'); return; }
+        apiUna('llaveEstado', { codigo: codigo }).then(function (r) {
+          if (parCodigo !== codigo) return;
+          if (r.ok && r.token) entrarCon(r.token, !!r.nueva);
+          else if (r.caducado) logout('El código ha caducado. Vuelva a intentarlo.');
+        }).catch(function () {});
+      }, 3000);
+    }).catch(function (e) { nfcDi(textoError(e), 'err'); });
+  }
+
+  // Este móvil ha abierto el QR de otro dispositivo: solo tiene que leer la llave.
+  function abrirComoLlave(codigo) {
+    modoMovil = true; parMovil = codigo;
+    pantallaLlave(false);
+    api('llaveInfo', { codigo: codigo }).then(function (res) {
+      if (!modoMovil) return;
+      if (!res.ok) { nfcDi(res.error || 'El código ha caducado. Vuelva a escanear el QR.', 'err'); return; }
+      if (res.nueva) $('nfcTitle').textContent = 'Registre su llave NFC';
+      if (hayNfc) escanear(true);
+      else nfcDi('Este navegador no puede leer NFC. Abra el QR con Chrome en un móvil Android con el NFC encendido.', 'err');
+    }).catch(function (e) { nfcDi(textoError(e), 'err'); });
+  }
+
   /* ---------- Teclado del datáfono ---------- */
 
   var audio = null;
@@ -188,6 +353,12 @@
       else if (k === 'x') logout('');
       return;
     }
+    if (!$('vLibre').hidden) { teclaLibre(k); return; }
+    if (!$('vNfc').hidden) {                         // esperando la llave: rojo cancela, verde vuelve a escanear
+      if (k === 'x') logout('');
+      else if (k === 'ok' && !$('nfcBtn').hidden) escanear(false);
+      return;
+    }
     if (k === 'ok') {
       if ($('loginBtn').disabled) return;
       if ($('loginForm').requestSubmit) $('loginForm').requestSubmit(); else $('loginBtn').click();
@@ -208,6 +379,17 @@
     if (!b) return;
     var k = b.getAttribute('data-k');
     if (k === 'eye') { pitido(660); return; }        // el ojo tiene su propio botón (mostrar/ocultar la clave)
+    tecla(k);
+  });
+
+  // Con teclado de ordenador también se puede teclear el importe libre y cancelar la llave.
+  document.addEventListener('keydown', function (e) {
+    if ($('pos').hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+    var libre = !$('vLibre').hidden, llave = !$('vNfc').hidden;
+    if (!libre && !llave) return;
+    var k = /^[0-9]$/.test(e.key) ? e.key : (e.key === 'Backspace' ? 'del' : (e.key === 'Enter' ? 'ok' : (e.key === 'Escape' ? 'x' : '')));
+    if (!k || (llave && k !== 'x' && k !== 'ok')) return;
+    e.preventDefault();
     tecla(k);
   });
 
@@ -288,6 +470,7 @@
       } else {
         acts.appendChild(btn('Editar', 'btn btn-ghost', function () { editar(it); }));
         acts.appendChild(btn('Borrar', 'btn btn-ghost', function () { confirming = it.code; renderList(); }));
+        acts.appendChild(btn('Compartir', 'btn btn-ghost', function () { compartirCodigo(it); }));
       }
 
       li.appendChild(name); li.appendChild(amt); li.appendChild(acts);
@@ -422,31 +605,47 @@
     }).catch(function () {});
   } catch (e) {}
 
-  $('shareBtn').addEventListener('click', function () {
-    var url = location.origin + location.pathname;
-    var dicho = function (t) {
-      $('shareTxt').textContent = t;
-      setTimeout(function () { $('shareTxt').textContent = 'Compartir'; }, 2200);
-    };
-    if (navigator.share) {                                  // móvil: abre WhatsApp, correo, etc.
-      var datos = { title: 'Datáfono · FuturMovil', text: 'Paga aquí con tarjeta a FuturMovil', url: url };
-      var conFoto = { title: datos.title, text: datos.text + '\n' + url, files: [fotoCompartir] };
-      var sinFoto = function (e) { if (!e || e.name !== 'AbortError') navigator.share(datos).catch(function () {}); };
+  // En el móvil abre WhatsApp, correo, etc. (con la imagen si se puede); en el ordenador copia el texto.
+  function compartir(titulo, texto, copia, alCopiar) {
+    if (navigator.share) {
+      var conFoto = { title: titulo, text: texto, files: [fotoCompartir] };
+      var sinFoto = function (e) { if (!e || e.name !== 'AbortError') navigator.share({ title: titulo, text: texto }).catch(function () {}); };
       if (fotoCompartir && navigator.canShare && navigator.canShare(conFoto)) navigator.share(conFoto).catch(sinFoto);
       else sinFoto();
       return;
     }
-    var copiar = function () {                              // ordenador: copia el enlace
+    var aMano = function () {
       var t = document.createElement('textarea');
-      t.value = url; t.style.position = 'fixed'; t.style.opacity = '0';
+      t.value = copia; t.style.position = 'fixed'; t.style.opacity = '0';
       document.body.appendChild(t); t.select();
-      try { document.execCommand('copy'); dicho('¡Copiado!'); } catch (e) { dicho(url); }
+      try { document.execCommand('copy'); alCopiar(); } catch (e) {}
       document.body.removeChild(t);
     };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(function () { dicho('¡Copiado!'); }, copiar);
-    } else copiar();
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(copia).then(alCopiar, aMano);
+    else aMano();
+  }
+
+  function urlApp() { return location.origin + location.pathname; }
+
+  $('shareBtn').addEventListener('click', function () {
+    compartir('Datáfono · FuturMovil', 'Paga aquí con tarjeta a FuturMovil\n' + urlApp(), urlApp(), function () {
+      $('shareTxt').textContent = '¡Copiado!';
+      setTimeout(function () { $('shareTxt').textContent = 'Compartir'; }, 2200);
+    });
   });
+
+  // Mensaje para el cliente: el datáfono, su código y cómo pagar.
+  function compartirCodigo(it) {
+    var imp = fmtEUR.format(it.amount);
+    var texto = '💳 *FuturMovil · Pago seguro con tarjeta*\n\n' +
+      'Ya puede realizar su pago de *' + imp + '* de forma rápida y segura desde nuestro datáfono online.\n\n' +
+      '🔑 Su código de pago: *' + it.code + '*\n\n' +
+      '1️⃣ Abra el datáfono: ' + urlApp() + '\n' +
+      '2️⃣ Introduzca el código *' + it.code + '* y pulse la tecla verde ✓\n' +
+      '3️⃣ Compruebe el importe y pague con su tarjeta en la pasarela segura\n\n' +
+      'Gracias por confiar en FuturMovil.';
+    compartir('Pago a FuturMovil', texto, texto, function () { toast('Mensaje copiado'); });
+  }
 
   /* ---------- Efectos ---------- */
 
@@ -480,7 +679,11 @@
 
   var guardada = '';
   try { guardada = sessionStorage.getItem('fm_admin') || ''; } catch (e) {}
-  if (guardada) {
+  var kPar = '';
+  try { kPar = (new URLSearchParams(location.search).get('k') || '').trim().toUpperCase(); } catch (e) {}
+  if (/^[A-Z0-9]{6}$/.test(kPar)) {
+    abrirComoLlave(kPar);
+  } else if (guardada) {
     adminPass = guardada;
     api('list', { admin: adminPass }).then(function (res) {
       if (res.ok) { show('vAdmin'); items = res.items; renderList(); }
