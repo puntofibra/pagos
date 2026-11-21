@@ -324,3 +324,25 @@ body {
 .install.share + .install { margin-left: 0; }
 .install { white-space: nowrap; }
 @media (max-width: 420px) { .brand { gap: 7px; } .brand-name { font-size: 20px; } .install { padding: 9px 10px; font-size: 12.5px; gap: 5px; } }
+
+/* Importe libre y llave NFC (dentro de la pantalla del datáfono) */
+.lcd-libre { margin: 2px 0 0; padding: 10px; font-family: var(--mono); font-size: clamp(30px, 10vw, 40px); letter-spacing: .04em; color: #eafffb; background: rgba(0,0,0,.45); border: 1px solid rgba(24,214,196,.35); border-radius: 12px; box-shadow: inset 0 2px 8px rgba(0,0,0,.6); font-variant-numeric: tabular-nums; }
+.nfc-ico { display: grid; place-items: center; height: 84px; color: #7fd8cf; }
+.nfc-ico svg { transform: rotate(-90deg); }
+.nfc-ico.busca svg { animation: nfc 1.3s ease-in-out infinite; }
+.nfc-ico.ok { color: #4ade80; }
+.nfc-ico.err { color: #ff8a8a; }
+.nfc-qr { display: block; width: 150px; height: 150px; margin: 2px auto 0; padding: 8px; background: #fff; border-radius: 10px; }
+#vNfc .lcd-note { min-height: 34px; }
+@media (prefers-reduced-motion: reduce) { .nfc-ico.busca svg { animation: none; } }
+.lcd-libre.pop { animation: librePop .18s ease-out; }
+@keyframes librePop { 0% { transform: scale(1.06); border-color: var(--teal); box-shadow: inset 0 2px 8px rgba(0,0,0,.6), 0 0 0 3px rgba(24,214,196,.25); } 100% { transform: none; } }
+.nfc-ico { position: relative; }
+.nfc-ico.busca::before, .nfc-ico.busca::after { content: ''; position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; border: 2px solid rgba(24,214,196,.55); animation: nfcOnda 1.8s ease-out infinite; }
+.nfc-ico.busca::after { animation-delay: .9s; }
+@keyframes nfcOnda { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+.nfc-ico.ok svg { animation: nfcOk .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes nfcOk { 0% { transform: rotate(-90deg) scale(.6); } 100% { transform: rotate(-90deg) scale(1); } }
+.nfc-ico.err { animation: shake .4s; }
+.nfc-qr { animation: lcdIn .35s ease both; }
+@media (prefers-reduced-motion: reduce) { .lcd-libre.pop, .nfc-ico.busca::before, .nfc-ico.busca::after, .nfc-ico.ok svg, .nfc-ico.err, .nfc-qr { animation: none; } }
