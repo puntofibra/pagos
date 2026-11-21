@@ -1,8 +1,8 @@
 /* Service worker: red primero (siempre la versión más nueva) y caché como respaldo sin conexión. */
-var CACHE = 'fm-pagos-v3';
+var CACHE = 'fm-pagos-v4';
 var SHELL = [
   './', 'index.html', 'styles.css', 'app.js', 'config.js',
-  'manifest.webmanifest', 'Icono%20de%20terminal%20de%20pago%20moderno.png'
+  'manifest.webmanifest', 'Terminal%20de%20pago%20con%20recibo%20Futurmovil.png', 'compartir.jpg'
 ];
 
 self.addEventListener('install', function (e) {
