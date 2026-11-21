@@ -1,5 +1,5 @@
 /* Service worker: red primero (siempre la versión más nueva) y caché como respaldo sin conexión. */
-var CACHE = 'fm-pagos-v4';
+var CACHE = 'fm-pagos-v5';
 var SHELL = [
   './', 'index.html', 'styles.css', 'app.js', 'config.js',
   'manifest.webmanifest', 'Terminal%20de%20pago%20con%20recibo%20Futurmovil.png', 'compartir.jpg'
