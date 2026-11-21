@@ -101,6 +101,27 @@
             <p class="lcd-note">Pulse el botón o la tecla verde ✓. Se abrirá la pasarela segura de myPOS para introducir la tarjeta.</p>
             <button class="lcd-exit" id="payExit" type="button">Cancelar operación</button>
           </div>
+
+          <!-- Importe libre -->
+          <div class="lcd-pane view" id="vLibre" aria-labelledby="libreTitle" hidden>
+            <div class="lcd-tag">Importe libre</div>
+            <h2 class="lcd-title" id="libreTitle">Introduzca el importe</h2>
+            <div class="lcd-libre" id="libreAmt" aria-live="polite">0,00 €</div>
+            <p class="error lcd-err" id="libreError" role="alert" aria-live="polite"></p>
+            <button class="lcd-soft" id="libreBtn" type="button"><span>Dos decimales · pulse ✓</span></button>
+          </div>
+
+          <!-- Llave NFC -->
+          <div class="lcd-pane view" id="vNfc" aria-labelledby="nfcTitle" hidden>
+            <div class="lcd-tag">Acceso reservado</div>
+            <h2 class="lcd-title" id="nfcTitle">Acerque su llave NFC</h2>
+            <div class="nfc-ico" id="nfcIco" aria-hidden="true">
+              <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 8.5a6 6 0 0 1 0 7M10 6a10 10 0 0 1 0 12M14 3.5a14 14 0 0 1 0 17M18 1.5a17 17 0 0 1 0 21"/></svg>
+            </div>
+            <img class="nfc-qr" id="nfcQr" alt="Código QR para pasar la llave con el móvil" width="150" height="150" hidden>
+            <p class="lcd-note" id="nfcMsg" role="status" aria-live="polite"></p>
+            <button class="lcd-soft" id="nfcBtn" type="button" hidden><span>Pulse ✓ para escanear</span></button>
+          </div>
         </div>
 
         <div class="keys" id="keys">
